@@ -1,0 +1,62 @@
+import requests
+import re
+import base64
+
+GITHUB_TOKEN = 'YOUR_GITHUB_TOKEN'
+HEADERS = {
+    'Authorization': f'token {GITHUB_TOKEN}',
+    'Accept': 'application/vnd.github.v3+json',
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36"
+}
+
+REPO_OWNER = 'Aouichatt'
+REPO_NAME = 'Ip.vt'
+
+def fetch_link_content(link):
+    try:
+        response = requests.get(link, headers=HEADERS)
+        response.raise_for_status()
+        return response.text
+    except requests.HTTPError:
+        print(f"Failed to fetch content for link: {link}")
+        return None
+
+def extract_links_from_github_url(url):
+    response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
+    pattern = re.compile(r'\"(http[^\"]+)\"')
+    return pattern.findall(response.text)
+
+def save_link_content_to_github(link_content, filename):
+    b64_content = base64.b64encode(link_content.encode()).decode()
+    commit_msg = f"Add file {filename}"
+    url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{filename}'
+
+    data = {
+        "message": commit_msg,
+        "content": b64_content
+    }
+    response = requests.put(url, headers=HEADERS, json=data)
+    if response.status_code == 201:
+        print(f"File {filename} created successfully!")
+    else:
+        print(f"Failed to create the file {filename}. Status code: {response.status_code}. Message: {response.text}")
+
+def main():
+    github_url = "https://github.com/Aouichatt/Djamel/blob/feaa7dc713494d7d5c98245be902a07a5a460594/Test#L15"
+    links = extract_links_from_github_url(github_url)
+    extracted_count = 0
+
+    for index, link in enumerate(links, start=1):
+        if extracted_count >= 5:
+            break
+
+        content = fetch_link_content(link)
+        if content:
+            filename = f"link_{index}.m3u8"
+            save_link_content_to_github(content, filename)
+            extracted_count += 1
+
+if __name__ == "__main__":
+  main()
+  
